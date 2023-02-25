@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:anim/accelerate_interpolator">
+    <!-- 漸變尺寸伸縮動畫效果 -->
+    <!--
+    fromXScale 起始x軸座標
+    toXScale 止x軸座標
+    fromYScale 起始y軸座標
+    toYScale 止y軸座標
+    pivotX 設定旋轉時的X軸座標
+    pivotY 設定旋轉時的Y軸座標
+    duration 持續時間
+    -->
+    <scale
+        android:duration="500"
+        android:fromXScale="1.0"
+        android:fromYScale="1.0"
+        android:pivotX="50%"
+        android:pivotY="50%"
+        android:toXScale="0.0"
+        android:toYScale="0.0" />
+</set>

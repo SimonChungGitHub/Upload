@@ -1,0 +1,19 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="PopupWindow" parent="android:Animation">
+        <item name="android:windowEnterAnimation">@anim/popup_window_up</item>
+        <item name="android:windowExitAnimation">@anim/popup_window_down</item>
+    </style>
+
+
+
+
+</resources>

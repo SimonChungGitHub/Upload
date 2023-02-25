@@ -1,0 +1,77 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="設定">
+        <EditTextPreference
+            app:defaultValue="Simon"
+            app:key="user"
+            app:title="使用者"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="http://192.168.0.238/okhttp/api/values/FileUpload"
+            app:key="url"
+            app:title="Web API URL"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="192.168.0.238"
+            app:key="server_ip"
+            app:title="上傳伺服器位址(un-use)"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="1212"
+            app:key="server_port"
+            app:title="通訊埠(un-use)"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            app:key="start_into_setting"
+            app:title="APP開啟時直接進入設定" />
+
+        <DropDownPreference
+            app:defaultValue="3"
+            app:entries="@array/reply_entries"
+            app:entryValues="@array/reply_values"
+            app:key="picture_display_qty"
+            app:title="相簿中每列相片個數"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:defaultValue="5"
+            app:enabled="true"
+            app:key="limitSize"
+            app:shouldDisableView="false"
+            app:title="相片大小限制(MB)"
+            app:useSimpleSummaryProvider="true" />
+
+        <DropDownPreference
+            app:defaultValue="1"
+            app:entries="@array/ratio_entries"
+            app:entryValues="@array/ratio_values"
+            app:key="imageRatio"
+            app:title="相片縮放比例"
+            app:useSimpleSummaryProvider="true" />
+
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="關於">
+        <EditTextPreference
+            app:enabled="false"
+            app:key="version"
+            app:shouldDisableView="false"
+            app:title="版本"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:enabled="false"
+            app:key="release_note"
+            app:shouldDisableView="false"
+            app:title="Release Note"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:shouldDisableView="true" />
+
+</PreferenceScreen>
