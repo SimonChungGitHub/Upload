@@ -20,6 +20,7 @@ public class RemoveICCProfile {
 
     public RemoveICCProfile(Path path) {
         this.path = path;
+        if (searchTag()) removeTag();
     }
 
     private boolean searchTag() {
