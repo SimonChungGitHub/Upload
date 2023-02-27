@@ -5,6 +5,8 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
+import com.simon.upload.event.BlockIndexChangeEvent;
+import com.simon.upload.listener.BlockIndexChangeListener;
 import com.simon.upload.sqlite.BrokenUploadSqliteOpenHelper;
 
 import java.io.File;
@@ -12,7 +14,7 @@ import java.io.File;
 /**
  * Model for 檔案續傳服務
  * 提供檔案續傳資訊
- * */
+ */
 public class BrokenUploadModel {
 
     private final Context context;
@@ -20,6 +22,7 @@ public class BrokenUploadModel {
     private int blockSize = 8 * 1024 * 1024;
     private int blockIndex = 0;
     private byte[] cache;
+    private BlockIndexChangeListener blockIndexChangeListener;
 
     public BrokenUploadModel(Context context, File file) {
         this.context = context;
@@ -77,11 +80,21 @@ public class BrokenUploadModel {
     }
 
     public void setBlockIndex(int blockIndex) {
+        boolean different = blockIndex != this.blockIndex;
         this.blockIndex = blockIndex;
+        if (different) applyBlockIndexChangeEvent(new BlockIndexChangeEvent(this));
     }
 
     public void setCache(byte[] cache) {
         this.cache = cache;
+    }
+
+    public void setOnBlockIndexChangeListener(BlockIndexChangeListener listener) {
+        this.blockIndexChangeListener = listener;
+    }
+
+    private void applyBlockIndexChangeEvent(BlockIndexChangeEvent event) {
+        this.blockIndexChangeListener.onBlockIndexChangeEvent(event);
     }
 
 }
