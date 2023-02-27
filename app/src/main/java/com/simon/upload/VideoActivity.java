@@ -134,7 +134,8 @@ public class VideoActivity extends MainActivity implements View.OnClickListener 
                 Intent intent = new Intent(this, BrokenUploadService.class);
                 intent.putParcelableArrayListExtra("list", selectFiles);
                 startForegroundService(intent);
-                new AlertDialog.Builder(this).setMessage("上傳作業背景執行中").show();
+                snackbar = Snackbar.make(thisLayout, "開始上傳服務", Snackbar.LENGTH_LONG);
+                snackbar.show();
                 break;
         }
 
