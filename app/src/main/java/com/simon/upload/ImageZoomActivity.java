@@ -1,7 +1,9 @@
 package com.simon.upload;
 
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -10,7 +12,9 @@ import android.graphics.PointF;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -20,7 +24,9 @@ import android.view.WindowManager;
 import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -28,11 +34,25 @@ import androidx.annotation.RequiresApi;
 
 import com.google.android.material.snackbar.Snackbar;
 import com.simon.upload.model.FileModel;
+import com.simon.upload.utils.CountingRequestBody;
+import com.simon.upload.utils.RemoveICCProfile;
 import com.simon.upload.utils.Utils;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class ImageZoomActivity extends MainActivity {
     private TextView count;
@@ -52,6 +72,11 @@ public class ImageZoomActivity extends MainActivity {
     private final PointF mid = new PointF();
     private float dist = 1f;
     private boolean isZOOM = false;
+
+
+    private final Handler handler = new Handler();
+    private AlertDialog dialog;
+
 
     @SuppressLint({"ClickableViewAccessibility", "SetTextI18n"})
     @RequiresApi(api = Build.VERSION_CODES.R)
@@ -331,15 +356,136 @@ public class ImageZoomActivity extends MainActivity {
 //            startForegroundService(intent);
 
 
-
-//            new Thread(() -> {
-//                FileModel model = fileModelList.get(index);
-//                ArrayList<FileModel> list = new ArrayList<>();
-//                list.add(model);
-//                //todo
-//                okhttpAsyncUpload(currentImages, "image");
-//            }).start();
+            new Thread(() -> {
+                FileModel model = fileModelList.get(index);
+                ArrayList<FileModel> list = new ArrayList<>();
+                list.add(model);
+                startUpload(list);
+            }).start();
         });
     }
+
+    @SuppressLint("SetTextI18n")
+    private void startUpload(ArrayList<FileModel> list) {
+        int totalCount = list.size();
+
+        String Ready = "Ready... ";
+        String Uploading = "Uploading... ";
+
+        LinearLayout linearLayout = new LinearLayout(this);
+        linearLayout.setOrientation(LinearLayout.VERTICAL);
+        linearLayout.setPaddingRelative(20, 5, 20, 0);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setView(linearLayout)
+                .setCancelable(false);
+        TextView uploading = new TextView(this);
+        uploading.setText("Uploading");
+        uploading.setTextColor(Color.RED);
+        uploading.setTextSize(20f);
+        ProgressBar progressbar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progressbar.setProgress(0);
+        progressbar.setMax(totalCount);
+
+
+
+        handler.post(() -> {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+            uploading.setText(Ready + progressbar.getProgress() + "/" + totalCount);
+            linearLayout.addView(uploading);
+            linearLayout.addView(progressbar);
+            dialog = builder.create();
+            dialog.show();
+        });
+
+        long start = new Date().getTime();
+        for (FileModel model : list) {
+            handler.post(() -> {
+                progressbar.incrementProgressBy(1);
+                uploading.setText(Ready + progressbar.getProgress() + "/" + totalCount);
+            });
+
+            //todo image加上浮水印
+            new RemoveICCProfile(Paths.get(model.getPath()));
+            uploading.setText(Ready + progressbar.getProgress() + "/" + totalCount);
+        }
+
+        handler.post(() -> {
+            linearLayout.removeView(progressbar);
+            progressbar.setProgress(0);
+            progressbar.setMax(totalCount);
+            uploading.setText(Uploading + progressbar.getProgress() + "/" + totalCount);
+        });
+
+        for (FileModel model : list) {
+            ProgressBar subProgressbar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+            subProgressbar.setProgress(0);
+            handler.post(() -> linearLayout.addView(subProgressbar));
+
+            File file = Paths.get(model.getPath()).toFile();
+            RequestBody requestBody = new MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("dept", "temp")
+                    .addFormDataPart("image", file.getName(),
+                            RequestBody.create(MediaType.parse("image/jpeg"), file))
+                    .build();
+
+            final CountingRequestBody.Listener progressListener = (bytesRead, contentLength) -> {
+                final int progress = (int) (((double) bytesRead / contentLength) * 100);
+                handler.post(() -> subProgressbar.setProgress(progress));
+            };
+
+            OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(3, TimeUnit.SECONDS)
+                    .writeTimeout(5, TimeUnit.MINUTES)
+                    .readTimeout(5, TimeUnit.MINUTES)
+                    .addNetworkInterceptor(chain -> {
+                        Request originalRequest = chain.request();
+                        if (originalRequest.body() == null) {
+                            return chain.proceed(originalRequest);
+                        }
+                        Request progressRequest = originalRequest.newBuilder()
+                                .method(originalRequest.method(),
+                                        new CountingRequestBody(originalRequest.body(), progressListener))
+                                .build();
+                        return chain.proceed(progressRequest);
+                    })
+                    .build();
+            String url = preferences.getString("url", "");
+            Request request = new Request.Builder()
+                    .header("Content-Type", "multipart/form-data")
+                    .url(url)
+                    .post(requestBody)
+                    .build();
+            try (Response response = client.newCall(request).execute()) {
+                if (response.code() == 204) {
+                    //todo delete uploaded file
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            handler.post(() -> {
+                linearLayout.removeView(subProgressbar);
+                progressbar.incrementProgressBy(1);
+                uploading.setText(Uploading + progressbar.getProgress() + "/" + totalCount);
+            });
+        }
+
+        Log.e("aaa", (new Date().getTime() - start) + "---");
+        handler.post(() -> {
+            dialog.dismiss();
+            linearLayout.removeAllViews();
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+            fileModelList = fileModel.getImageModelList();
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
+            }
+//            snackbar = Snackbar.make(thisLayout, "成功 " + successCount + "    失敗 " + (totalCount - successCount), Snackbar.LENGTH_INDEFINITE);
+//            snackbar.show();
+        });
+
+
+    }
+
 
 }
