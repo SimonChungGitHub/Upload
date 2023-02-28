@@ -102,19 +102,19 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
     private NetworkConnectChangedReceiver netWorkStateReceiver;
     private NotificationCancelReceiver notificationCancelReceiver;
     private String url;
-    private RemoteViews remoteViews;
     private NotificationManager manager;
     private Notification notification;
-    private boolean cancelUpload = false;
+    private RemoteViews remoteViews;
+    private FileModel fileModel;
     private BrokenUploadModel model;
     private boolean stopUpload = false;
-    private FileModel fileModel;
+    private boolean cancelUpload = false;
 
     @Override
     public void onCreate() {
         super.onCreate();
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        url = preferences.getString("url", "http://192.168.0.238/okhttp/api/values/FileUpload").replace("FileUpload", "CacheFileUpload");
+        url = preferences.getString("url", "http://192.168.0.238/okhttp/api/values/CacheFileUpload");
         manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (netWorkStateReceiver == null) {

@@ -10,6 +10,8 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.graphics.drawable.ColorDrawable;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -365,6 +367,16 @@ public class ImageZoomActivity extends MainActivity {
         });
     }
 
+    private boolean internetNotFound() {
+        ConnectivityManager connManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        NetworkInfo info = connManager.getActiveNetworkInfo();
+        if (info == null || !info.isConnected()) {
+            return true;
+        } else {
+            return !info.isAvailable();
+        }
+    }
+
     @SuppressLint("SetTextI18n")
     private void startUpload(ArrayList<FileModel> list) {
         int totalCount = list.size();
@@ -386,7 +398,6 @@ public class ImageZoomActivity extends MainActivity {
         ProgressBar progressbar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressbar.setProgress(0);
         progressbar.setMax(totalCount);
-
 
 
         handler.post(() -> {
@@ -435,6 +446,7 @@ public class ImageZoomActivity extends MainActivity {
                 handler.post(() -> subProgressbar.setProgress(progress));
             };
 
+
             OkHttpClient client = new OkHttpClient.Builder()
                     .connectTimeout(3, TimeUnit.SECONDS)
                     .writeTimeout(5, TimeUnit.MINUTES)
@@ -451,7 +463,8 @@ public class ImageZoomActivity extends MainActivity {
                         return chain.proceed(progressRequest);
                     })
                     .build();
-            String url = preferences.getString("url", "");
+
+            String url = "http://192.168.0.238/okhttp/api/values/FileUpload";
             Request request = new Request.Builder()
                     .header("Content-Type", "multipart/form-data")
                     .url(url)

@@ -76,11 +76,6 @@ public class ImageActivity extends MainActivity implements View.OnClickListener 
         setContentView(R.layout.activity_image);
         initView();
         currentActivity = Image_Activity;
-        //todo
-        if (getIntent().getAction() != null && preferences.getBoolean("start_into_setting", false)) {
-            startActivity(new Intent(this, SettingsActivity.class));
-        }
-
     }
 
     @Override
@@ -112,7 +107,7 @@ public class ImageActivity extends MainActivity implements View.OnClickListener 
                 dialogBuilder.setTitle("檔案刪除")
                         .setMessage("檔案將被刪除")
                         .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                            selectFiles.forEach(o -> o.deleteImage(this,o.getId()));
+                            selectFiles.forEach(o -> o.deleteImage(this, o.getId()));
                             fileModelList = fileListModel.getImageList();
                             adapter.notifyDataSetChanged();
                         })
@@ -211,7 +206,7 @@ public class ImageActivity extends MainActivity implements View.OnClickListener 
 
                 imageView.setScaleType(ImageView.ScaleType.MATRIX);
                 int screenLength = getResources().getDisplayMetrics().widthPixels;
-                if (!isScreenOrientationPortrait()) {
+                if (getResources().getConfiguration().orientation != Configuration.ORIENTATION_PORTRAIT) {
                     screenLength = getResources().getDisplayMetrics().heightPixels;
                 }
 
