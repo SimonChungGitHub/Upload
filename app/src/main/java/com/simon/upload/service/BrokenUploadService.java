@@ -172,6 +172,7 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
                 .setSmallIcon(R.drawable.ic_baseline_cloud_upload_24)
                 .setWhen(System.currentTimeMillis())
                 .setContent(remoteViews)
+                .setCustomBigContentView(remoteViews)
                 .setAutoCancel(false)
                 .build();
 
