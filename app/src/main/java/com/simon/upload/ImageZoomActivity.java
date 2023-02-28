@@ -88,7 +88,7 @@ public class ImageZoomActivity extends MainActivity {
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_image_zoom);
         initView();
-        fileModelList = fileModel.getImageModelList();
+        fileModelList = fileListModel.getImageList();
         Intent intent = getIntent();
         index = intent.getIntExtra("index", -1);
         if (savedInstanceState != null) {
@@ -314,8 +314,8 @@ public class ImageZoomActivity extends MainActivity {
         btnDelete.setOnClickListener(view12 -> {
             popupWindow.dismiss();
             FileModel model = fileModelList.get(index);
-            fileModel.deleteImage(model.getId());
-            fileModelList = fileModel.getImageModelList();
+            model.deleteImage(this, model.getId());
+            fileModelList = fileListModel.getImageList();
             if (fileModelList.size() == 0) {
                 finish();
                 return;
@@ -476,7 +476,7 @@ public class ImageZoomActivity extends MainActivity {
             dialog.dismiss();
             linearLayout.removeAllViews();
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-            fileModelList = fileModel.getImageModelList();
+            fileModelList = fileListModel.getImageList();
             if (adapter != null) {
                 adapter.notifyDataSetChanged();
             }

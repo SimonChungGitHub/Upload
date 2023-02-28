@@ -36,6 +36,7 @@ import androidx.core.content.ContextCompat;
 import androidx.preference.PreferenceManager;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.simon.upload.model.FileListModel;
 import com.simon.upload.model.FileModel;
 import com.simon.upload.service.BrokenUploadService;
 import com.simon.upload.utils.Constants;
@@ -49,10 +50,10 @@ public class MainActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             BrokenUploadService.uploadFileList.clear();
             if (currentActivity == Image_Activity) {
-                fileModelList = fileModel.getImageModelList();
+                fileModelList = fileListModel.getImageList();
                 adapter.notifyDataSetChanged();
             } else if (currentActivity == Video_Activity) {
-                fileModelList = fileModel.getVideoModelList();
+                fileModelList = fileListModel.getVideoList();
                 adapter.notifyDataSetChanged();
             }
         }
@@ -69,7 +70,8 @@ public class MainActivity extends AppCompatActivity {
     /**
      * ----------------------------------------
      */
-    protected FileModel fileModel = new FileModel(this);
+//    protected FileModel fileModel = new FileModel(this);
+    protected FileListModel fileListModel = new FileListModel(this);
     protected ArrayList<FileModel> fileModelList;
     protected BaseAdapter adapter;
     private BrokenUploadBroadcast brokenUploadBroadcast = new BrokenUploadBroadcast();

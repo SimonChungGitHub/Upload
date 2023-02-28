@@ -81,8 +81,6 @@ public class ImageActivity extends MainActivity implements View.OnClickListener 
         //todo
         if (getIntent().getAction() != null && preferences.getBoolean("start_into_setting", false)) {
             startActivity(new Intent(this, SettingsActivity.class));
-        } else if (getIntent().getAction() != null && getIntent().getCategories().contains("android.shortcut.camera")) {
-            openCamera();
         }
 
     }
@@ -91,7 +89,7 @@ public class ImageActivity extends MainActivity implements View.OnClickListener 
     protected void onResume() {
         super.onResume();
         currentActivity = Image_Activity;
-        fileModelList = fileModel.getImageModelList();
+        fileModelList = fileListModel.getImageList();
         adapter = getAdapter();
         if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
             gridView.setNumColumns(columns);
@@ -116,8 +114,8 @@ public class ImageActivity extends MainActivity implements View.OnClickListener 
                 dialogBuilder.setTitle("檔案刪除")
                         .setMessage("檔案將被刪除")
                         .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                            selectFiles.forEach(o -> fileModel.deleteImage(o.getId()));
-                            fileModelList = fileModel.getImageModelList();
+                            selectFiles.forEach(o -> o.deleteImage(this,o.getId()));
+                            fileModelList = fileListModel.getImageList();
                             adapter.notifyDataSetChanged();
                         })
                         .setNegativeButton(android.R.string.cancel, (dialog, which) -> dialog.dismiss());
@@ -168,7 +166,7 @@ public class ImageActivity extends MainActivity implements View.OnClickListener 
 
         swipeRefreshLayout = findViewById(R.id.image_swipe);
         swipeRefreshLayout.setOnRefreshListener(() -> {
-            fileModelList = fileModel.getImageModelList();
+            fileModelList = fileListModel.getImageList();
             adapter.notifyDataSetChanged();
             swipeRefreshLayout.setRefreshing(false);
         });

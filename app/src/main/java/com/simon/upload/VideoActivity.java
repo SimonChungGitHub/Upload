@@ -84,7 +84,7 @@ public class VideoActivity extends MainActivity implements View.OnClickListener 
     protected void onResume() {
         super.onResume();
         currentActivity = Video_Activity;
-        fileModelList = fileModel.getVideoModelList();
+        fileModelList = fileListModel.getVideoList();
         adapter = getAdapter();
         if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
             gridView.setNumColumns(columns);
@@ -109,8 +109,8 @@ public class VideoActivity extends MainActivity implements View.OnClickListener 
                 dialogBuilder.setTitle("檔案刪除")
                         .setMessage("檔案將被刪除")
                         .setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                            selectFiles.forEach(o -> fileModel.deleteVideo(o.getId()));
-                            fileModelList = fileModel.getVideoModelList();
+                            selectFiles.forEach(o -> o.deleteVideo(this, o.getId()));
+                            fileModelList = fileListModel.getVideoList();
                             adapter.notifyDataSetChanged();
                         })
                         .setNegativeButton(android.R.string.cancel, (dialog, which) -> dialog.dismiss());
@@ -156,7 +156,7 @@ public class VideoActivity extends MainActivity implements View.OnClickListener 
         swipeRefreshLayout = findViewById(R.id.video_swipe);
         swipeRefreshLayout.setOnRefreshListener(() -> {
             if (!BrokenUploadService.serviceProcessing) {
-                fileModelList = fileModel.getVideoModelList();
+                fileModelList = fileListModel.getVideoList();
                 adapter.notifyDataSetChanged();
             }
             swipeRefreshLayout.setRefreshing(false);

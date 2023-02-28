@@ -33,6 +33,7 @@ import com.simon.upload.sqlite.BrokenUploadSqliteOpenHelper;
 import com.simon.upload.utils.Constants;
 import com.simon.upload.utils.DarkMode;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
@@ -61,8 +62,6 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
 
     @Override
     public void onBlockIndexChangeEvent(BlockIndexChangeEvent event) {
-        remoteViews.setTextViewText(R.id.notification_upload_title, "正在上傳 " + uploadFileCount + "/" + uploadFileList.size());
-        remoteViews.setTextViewText(R.id.notification_upload_content, model.getFile().getName() + " / " + model.getFile().length() / 1024 / 1024 + "MB");
         remoteViews.setProgressBar(R.id.notification_upload_progress, model.getBlockCount(), model.getBlockIndex() + 1, false);
         try (BrokenUploadSqliteOpenHelper obj = new BrokenUploadSqliteOpenHelper(this)) {
             SQLiteDatabase db = obj.getWritableDatabase();
@@ -76,8 +75,39 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
     private class NetworkConnectChangedReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (networkConnected() && !isUploading) {
-                new Thread(() -> startUpload(model)).start();
+            if (networkConnected() && stopUpload) {
+                stopUpload = false;
+                new Thread(() -> {
+                    int index = uploadFileList.indexOf(fileModel);
+                    for (int i = index; i < uploadFileList.size(); i++) {
+                        if (cancelUpload) {
+                            stopSelf();
+                            break;
+                        }
+                        if (stopUpload) {
+                            break;
+                        }
+                        fileModel = uploadFileList.get(i);
+                        File file = Paths.get(fileModel.getPath()).toFile();
+                        model = new BrokenUploadModel(getApplicationContext(), file);
+                        model.setOnBlockIndexChangeListener(event -> {
+                            remoteViews.setProgressBar(R.id.notification_upload_progress, model.getBlockCount(), model.getBlockIndex() + 1, false);
+                            try (BrokenUploadSqliteOpenHelper obj = new BrokenUploadSqliteOpenHelper(getApplicationContext())) {
+                                SQLiteDatabase db = obj.getWritableDatabase();
+                                startForeground(Constants.notificationUploadId, notification);
+                                ContentValues values = new ContentValues();
+                                values.put("blockIndex", model.getBlockIndex());
+                                db.update(BrokenUploadSqliteOpenHelper._TableName, values, "file=?", new String[]{model.getFile().getName()});
+                            }
+                        });
+                        remoteViews.setTextViewText(R.id.notification_upload_title, "正在上傳 " + (i + 1) + "/" + uploadFileList.size());
+                        remoteViews.setTextViewText(R.id.notification_upload_content, model.getFile().getName() + " / " + model.getFile().length() / 1024 / 1024 + "MB");
+                        startForeground(Constants.notificationUploadId, notification);
+                        if (model.getFile().exists()) {
+                            startUpload(model);
+                        }
+                    }
+                }).start();
             }
         }
     }
@@ -86,7 +116,8 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
         @Override
         public void onReceive(Context context, Intent intent) {
             cancelUpload = true;
-            remoteViews.setTextViewText(R.id.notification_upload_title, "上傳取消");
+            stopUpload = true;
+            remoteViews.setTextViewText(R.id.notification_upload_title, "取消上傳");
             remoteViews.setViewVisibility(R.id.notification_upload_content, View.GONE);
             remoteViews.setViewVisibility(R.id.notification_upload_progress, View.GONE);
             remoteViews.setViewVisibility(R.id.notification_upload_button, View.GONE);
@@ -105,8 +136,8 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
     private Notification notification;
     private boolean cancelUpload = false;
     private BrokenUploadModel model;
-    private int uploadFileCount = 0;
-    private boolean isUploading = true;
+    private boolean stopUpload = false;
+    private FileModel fileModel;
 
     @Override
     public void onCreate() {
@@ -137,10 +168,6 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
         remoteViews = new RemoteViews(getPackageName(), R.layout.notification_broken_upload_service);
         remoteViews.setTextViewText(R.id.notification_upload_button, getString(android.R.string.cancel));
         remoteViews.setOnClickPendingIntent(R.id.notification_upload_button, pendingIntent);
-        remoteViews.setTextViewText(R.id.notification_upload_title, "上傳服務開始 - 準備上傳");
-        remoteViews.setTextViewText(R.id.notification_upload_content, "");
-        remoteViews.setProgressBar(R.id.notification_upload_progress, 100, 0, false);
-
         notification = new NotificationCompat.Builder(this, Constants.notificationChannel)
                 .setSmallIcon(R.drawable.ic_baseline_cloud_upload_24)
                 .setWhen(System.currentTimeMillis())
@@ -165,17 +192,22 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
             manager.cancel(0);
             serviceProcessing = true;
             uploadFileList = intent.getParcelableArrayListExtra("list");
-            startForeground(Constants.notificationUploadId, notification);
-
             new Thread(() -> {
-                for (FileModel m : uploadFileList) {
+                for (FileModel item : uploadFileList) {
                     if (cancelUpload) {
                         stopSelf();
+                        sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
                         return;
                     }
-                    uploadFileCount++;
-                    model = new BrokenUploadModel(this, Paths.get(m.getPath()).toFile());
+                    if (stopUpload) {
+                        break;
+                    }
+                    fileModel = item;
+                    model = new BrokenUploadModel(this, Paths.get(item.getPath()).toFile());
                     model.setOnBlockIndexChangeListener(this);
+                    remoteViews.setTextViewText(R.id.notification_upload_title, "正在上傳 " + (uploadFileList.indexOf(item) + 1) + "/" + uploadFileList.size());
+                    remoteViews.setTextViewText(R.id.notification_upload_content, model.getFile().getName() + " / " + model.getFile().length() / 1024 / 1024 + "MB");
+                    startForeground(Constants.notificationUploadId, notification);
                     if (model.getFile().exists()) {
                         startUpload(model);
                     }
@@ -219,13 +251,14 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
     }
 
     protected void startUpload(BrokenUploadModel model) {
-        isUploading = true;
+        stopUpload = false;
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(model.getFile(), "r");
              BrokenUploadSqliteOpenHelper obj = new BrokenUploadSqliteOpenHelper(this)) {
             SQLiteDatabase db = obj.getWritableDatabase();
             for (int i = model.getBlockIndex(); i < model.getBlockCount(); i++) {
                 if (cancelUpload) {
                     stopSelf();
+                    sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
                     return;
                 }
                 model.setBlockIndex(i);
@@ -259,7 +292,7 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
                                 randomAccessFile.close();
                                 Files.deleteIfExists(model.getFile().toPath());
                                 db.delete(BrokenUploadSqliteOpenHelper._TableName, "file=?", new String[]{model.getFile().getName()});
-                                if (uploadFileCount == uploadFileList.size()) {
+                                if (uploadFileList.indexOf(fileModel) == uploadFileList.size() - 1) {
                                     sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
                                     remoteViews.setTextViewText(R.id.notification_upload_title, "上傳完成");
                                     remoteViews.setViewVisibility(R.id.notification_upload_content, View.GONE);
@@ -281,39 +314,42 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
             }
         } catch (IOException e) {
             Log.e("startUpload", e.toString());
-        } finally {
-            isUploading = false;
         }
     }
 
-    private HashMap<String, String> httpConnection(@NonNull BrokenUploadModel fileInfo) throws IOException {
+    private HashMap<String, String> httpConnection(@NonNull BrokenUploadModel fileInfo) {
         HashMap<String, String> map = new HashMap<>();
-        OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(3, TimeUnit.SECONDS)
-                .writeTimeout(5, TimeUnit.MINUTES)
-                .readTimeout(5, TimeUnit.MINUTES)
-                .addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
-                .build();
+        try {
+            OkHttpClient client = new OkHttpClient.Builder()
+                    .connectTimeout(3, TimeUnit.SECONDS)
+                    .writeTimeout(5, TimeUnit.MINUTES)
+                    .readTimeout(5, TimeUnit.MINUTES)
+                    .addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
+                    .build();
 
-        RequestBody postBody = RequestBody.create(MediaType.parse("application/octet-stream"), fileInfo.getCache());
-        RequestBody requestBody = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("dept", "temp")
-                .addFormDataPart("blockSize", String.valueOf(fileInfo.getBlockSize()))
-                .addFormDataPart("blockIndex", String.valueOf(fileInfo.getBlockIndex()))
-                .addFormDataPart("fileSize", String.valueOf(fileInfo.getFile().length()))
-                .addFormDataPart("file", fileInfo.getFile().getName(), postBody)
-                .build();
+            RequestBody postBody = RequestBody.create(MediaType.parse("application/octet-stream"), fileInfo.getCache());
+            RequestBody requestBody = new MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("dept", "temp")
+                    .addFormDataPart("blockSize", String.valueOf(fileInfo.getBlockSize()))
+                    .addFormDataPart("blockIndex", String.valueOf(fileInfo.getBlockIndex()))
+                    .addFormDataPart("fileSize", String.valueOf(fileInfo.getFile().length()))
+                    .addFormDataPart("file", fileInfo.getFile().getName(), postBody)
+                    .build();
 
-        Request request = new Request.Builder()
-                .url(url)
-                .post(requestBody)
-                .build();
+            Request request = new Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            String result = Objects.requireNonNull(response.body()).string();
-            map.put("responseCode", String.valueOf(response.code()));
-            map.put("result", result);
+            try (Response response = client.newCall(request).execute()) {
+                String result = Objects.requireNonNull(response.body()).string();
+                map.put("responseCode", String.valueOf(response.code()));
+                map.put("result", result);
+            }
+        } catch (IOException e) {
+            Log.e("httpConnection", e.toString());
+            stopUpload = true;
         }
         return map;
     }
