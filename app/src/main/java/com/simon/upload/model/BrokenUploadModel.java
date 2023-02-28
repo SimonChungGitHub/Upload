@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
 
 import com.simon.upload.event.BlockIndexChangeEvent;
 import com.simon.upload.listener.BlockIndexChangeListener;
@@ -48,6 +49,8 @@ public class BrokenUploadModel {
                     values.put("blockIndex", blockIndex);
                     db.insert(BrokenUploadSqliteOpenHelper._TableName, null, values);
                 }
+            } catch (Exception e) {
+                Log.e("aaa", e.toString());
             }
         }
 
