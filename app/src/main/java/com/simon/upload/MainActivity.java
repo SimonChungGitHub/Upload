@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     protected SharedPreferences preferences;
-    protected int columns = 2;
+    protected int columns = 3;
     protected String url;
     protected PointF startPoint = new PointF();
 
@@ -70,17 +70,15 @@ public class MainActivity extends AppCompatActivity {
     /**
      * ----------------------------------------
      */
-//    protected FileModel fileModel = new FileModel(this);
     protected FileListModel fileListModel = new FileListModel(this);
     protected ArrayList<FileModel> fileModelList;
     protected BaseAdapter adapter;
     private BrokenUploadBroadcast brokenUploadBroadcast = new BrokenUploadBroadcast();
-
     protected int Image_Activity = 0;
     protected int Video_Activity = 1;
     protected int currentActivity;
 
-    @RequiresApi(api = Build.VERSION_CODES.R)
+
     @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,12 +108,11 @@ public class MainActivity extends AppCompatActivity {
         manager.createNotificationChannel(channel);
 
         registerReceiver(brokenUploadBroadcast, new IntentFilter("com.umc.camera.BrokenUpload"));
-
     }
 
     private void initialParam() {
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        columns = Integer.parseInt(preferences.getString("picture_display_qty", "2"));
+        columns = Integer.parseInt(preferences.getString("picture_display_qty", "3"));
         url = preferences.getString("url", "");
     }
 
@@ -213,7 +210,6 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.R)
     protected void openCamera() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, Constants.PERMISSION_CAMERA);
@@ -234,9 +230,6 @@ public class MainActivity extends AppCompatActivity {
             return !info.isAvailable();
         }
     }
-
-
-
 
 
 }
