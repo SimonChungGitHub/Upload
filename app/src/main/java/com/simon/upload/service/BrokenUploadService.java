@@ -33,7 +33,6 @@ import com.simon.upload.sqlite.BrokenUploadSqliteOpenHelper;
 import com.simon.upload.utils.Constants;
 import com.simon.upload.utils.DarkMode;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
@@ -77,37 +76,8 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
         public void onReceive(Context context, Intent intent) {
             if (networkConnected() && stopUpload) {
                 stopUpload = false;
-                new Thread(() -> {
-                    int index = uploadFileList.indexOf(fileModel);
-                    for (int i = index; i < uploadFileList.size(); i++) {
-                        if (cancelUpload) {
-                            stopSelf();
-                            break;
-                        }
-                        if (stopUpload) {
-                            break;
-                        }
-                        fileModel = uploadFileList.get(i);
-                        File file = Paths.get(fileModel.getPath()).toFile();
-                        model = new BrokenUploadModel(getApplicationContext(), file);
-                        model.setOnBlockIndexChangeListener(event -> {
-                            remoteViews.setProgressBar(R.id.notification_upload_progress, model.getBlockCount(), model.getBlockIndex() + 1, false);
-                            try (BrokenUploadSqliteOpenHelper obj = new BrokenUploadSqliteOpenHelper(getApplicationContext())) {
-                                SQLiteDatabase db = obj.getWritableDatabase();
-                                startForeground(Constants.notificationUploadId, notification);
-                                ContentValues values = new ContentValues();
-                                values.put("blockIndex", model.getBlockIndex());
-                                db.update(BrokenUploadSqliteOpenHelper._TableName, values, "file=?", new String[]{model.getFile().getName()});
-                            }
-                        });
-                        remoteViews.setTextViewText(R.id.notification_upload_title, "正在上傳 " + (i + 1) + "/" + uploadFileList.size());
-                        remoteViews.setTextViewText(R.id.notification_upload_content, model.getFile().getName() + " / " + model.getFile().length() / 1024 / 1024 + "MB");
-                        startForeground(Constants.notificationUploadId, notification);
-                        if (model.getFile().exists()) {
-                            startUpload(model);
-                        }
-                    }
-                }).start();
+                int index = uploadFileList.indexOf(fileModel);
+                uploadThread(index);
             }
         }
     }
@@ -122,6 +92,8 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
             remoteViews.setViewVisibility(R.id.notification_upload_progress, View.GONE);
             remoteViews.setViewVisibility(R.id.notification_upload_button, View.GONE);
             manager.notify(0, notification);
+            stopSelf();
+            sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
         }
     }
 
@@ -193,27 +165,7 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
             manager.cancel(0);
             serviceProcessing = true;
             uploadFileList = intent.getParcelableArrayListExtra("list");
-            new Thread(() -> {
-                for (FileModel item : uploadFileList) {
-                    if (cancelUpload) {
-                        stopSelf();
-                        sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
-                        return;
-                    }
-                    if (stopUpload) {
-                        break;
-                    }
-                    fileModel = item;
-                    model = new BrokenUploadModel(this, Paths.get(item.getPath()).toFile());
-                    model.setOnBlockIndexChangeListener(this);
-                    remoteViews.setTextViewText(R.id.notification_upload_title, "正在上傳 " + (uploadFileList.indexOf(item) + 1) + "/" + uploadFileList.size());
-                    remoteViews.setTextViewText(R.id.notification_upload_content, model.getFile().getName() + " / " + model.getFile().length() / 1024 / 1024 + "MB");
-                    startForeground(Constants.notificationUploadId, notification);
-                    if (model.getFile().exists()) {
-                        startUpload(model);
-                    }
-                }
-            }).start();
+            uploadThread(0);
         }
         return super.onStartCommand(intent, flags, startId);
     }
@@ -251,19 +203,32 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
         return false;
     }
 
+    private void uploadThread(int index) {
+        new Thread(() -> {
+            for (int i = index; i < uploadFileList.size(); i++) {
+                if (stopUpload) {
+                    break;
+                }
+                fileModel = uploadFileList.get(i);
+                model = new BrokenUploadModel(this, Paths.get(fileModel.getPath()).toFile());
+                model.setOnBlockIndexChangeListener(this);
+                remoteViews.setTextViewText(R.id.notification_upload_title, "正在上傳 " + (uploadFileList.indexOf(fileModel) + 1) + "/" + uploadFileList.size());
+                remoteViews.setTextViewText(R.id.notification_upload_content, model.getFile().getName() + " / " + model.getFile().length() / 1024 / 1024 + "MB");
+                startForeground(Constants.notificationUploadId, notification);
+                if (model.getFile().exists()) {
+                    startUpload(model);
+                }
+            }
+        }).start();
+    }
+
     protected void startUpload(BrokenUploadModel model) {
         stopUpload = false;
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(model.getFile(), "r");
              BrokenUploadSqliteOpenHelper obj = new BrokenUploadSqliteOpenHelper(this)) {
             SQLiteDatabase db = obj.getWritableDatabase();
             for (int i = model.getBlockIndex(); i < model.getBlockCount(); i++) {
-                if (cancelUpload) {
-                    stopSelf();
-                    sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
-                    return;
-                }
                 model.setBlockIndex(i);
-
                 //該讀取方式請勿變更, 避免上傳後檔案無法使用
                 long offset = (long) model.getBlockIndex() * model.getBlockSize();
                 randomAccessFile.seek(offset);
@@ -273,9 +238,10 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
                     cache = Arrays.copyOf(cache, length);
                 }
                 model.setCache(cache);
-
                 HashMap<String, String> map = httpConnection(model);
-                if (map.isEmpty()) {
+                if (cancelUpload) {
+                    break;
+                } else if (map.isEmpty()) {
                     remoteViews.setTextViewText(R.id.notification_upload_title, "上傳停止, 等待恢復網路連線後繼續上傳");
                     startForeground(Constants.notificationUploadId, notification);
                     break;
