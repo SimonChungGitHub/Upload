@@ -86,7 +86,6 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
         @Override
         public void onReceive(Context context, Intent intent) {
             cancelUpload = true;
-            stopUpload = true;
             remoteViews.setTextViewText(R.id.notification_upload_title, "取消上傳");
             remoteViews.setViewVisibility(R.id.notification_upload_content, View.GONE);
             remoteViews.setViewVisibility(R.id.notification_upload_progress, View.GONE);
@@ -241,7 +240,7 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
                 HashMap<String, String> map = httpConnection(model);
                 if (cancelUpload) {
                     break;
-                } else if (map.isEmpty()) {
+                } else if (stopUpload || map.isEmpty()) {
                     remoteViews.setTextViewText(R.id.notification_upload_title, "上傳停止, 等待恢復網路連線後繼續上傳");
                     startForeground(Constants.notificationUploadId, notification);
                     break;
