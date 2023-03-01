@@ -124,7 +124,7 @@ public class VideoActivity extends MainActivity implements View.OnClickListener 
                     return;
                 }
                 if (BrokenUploadService.serviceProcessing) {
-                    new AlertDialog.Builder(this).setMessage("請稍後執行, 背景在執行前次上傳, 可於系統通知內取消前次上傳").show();
+                    new AlertDialog.Builder(this).setMessage("請稍後上傳, 或取消前次上傳後再上傳").show();
                     return;
                 }
                 fileModelList = (ArrayList<FileModel>) fileModelList.stream().filter(o -> !o.isSelected()).collect(Collectors.toList());

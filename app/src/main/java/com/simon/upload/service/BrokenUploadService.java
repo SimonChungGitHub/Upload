@@ -74,10 +74,14 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
     private class NetworkConnectChangedReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (networkConnected() && stopUpload) {
-                stopUpload = false;
-                int index = uploadFileList.indexOf(fileModel);
-                uploadThread(index);
+            if (networkConnected()) {
+                if (stopUpload) {
+                    stopUpload = false;
+                    int index = uploadFileList.indexOf(fileModel);
+                    uploadThread(index);
+                }
+            } else {
+                stopUpload = true;
             }
         }
     }
@@ -92,7 +96,6 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
             remoteViews.setViewVisibility(R.id.notification_upload_button, View.GONE);
             manager.notify(0, notification);
             stopSelf();
-            sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
         }
     }
 
@@ -178,6 +181,7 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
         this.notificationCancelReceiver = null;
         serviceProcessing = false;
         uploadFileList.clear();
+        sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
     }
 
     @Override
@@ -222,7 +226,6 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
     }
 
     protected void startUpload(BrokenUploadModel model) {
-        stopUpload = false;
         try (RandomAccessFile randomAccessFile = new RandomAccessFile(model.getFile(), "r");
              BrokenUploadSqliteOpenHelper obj = new BrokenUploadSqliteOpenHelper(this)) {
             SQLiteDatabase db = obj.getWritableDatabase();
@@ -241,14 +244,15 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
                 if (cancelUpload) {
                     break;
                 } else if (stopUpload || map.isEmpty()) {
-                    remoteViews.setTextViewText(R.id.notification_upload_title, "上傳停止, 等待恢復網路連線後繼續上傳");
+                    remoteViews.setTextViewText(R.id.notification_upload_title, "中斷上傳 " + (uploadFileList.indexOf(fileModel) + 1) + "/" + uploadFileList.size() + " (無網路連線 or 找不到主機)");
                     startForeground(Constants.notificationUploadId, notification);
                     break;
                 } else {
                     int responseCode = Integer.parseInt(Objects.requireNonNull(map.get("responseCode")));
                     boolean result = Boolean.parseBoolean(map.get("result"));
                     if (responseCode != 200) {
-                        remoteViews.setTextViewText(R.id.notification_upload_title, "主機異常, code " + responseCode);
+                        remoteViews.setTextViewText(R.id.notification_upload_title, "上傳失敗 (主機異常, code " + responseCode + ")");
+                        remoteViews.setViewVisibility(R.id.notification_upload_button, View.GONE);
                         manager.notify(0, notification);
                         stopSelf();
                         break;
@@ -259,7 +263,6 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
                                 Files.deleteIfExists(model.getFile().toPath());
                                 db.delete(BrokenUploadSqliteOpenHelper._TableName, "file=?", new String[]{model.getFile().getName()});
                                 if (uploadFileList.indexOf(fileModel) == uploadFileList.size() - 1) {
-                                    sendBroadcast(new Intent("com.umc.camera.BrokenUpload"));
                                     remoteViews.setTextViewText(R.id.notification_upload_title, "上傳完成");
                                     remoteViews.setViewVisibility(R.id.notification_upload_content, View.GONE);
                                     remoteViews.setViewVisibility(R.id.notification_upload_progress, View.GONE);
@@ -270,7 +273,8 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
                                 break;
                             }
                         } else {
-                            remoteViews.setTextViewText(R.id.notification_upload_title, "上傳失敗, web api return false");
+                            remoteViews.setTextViewText(R.id.notification_upload_title, "上傳失敗 (web api return false)");
+                            remoteViews.setViewVisibility(R.id.notification_upload_button, View.GONE);
                             manager.notify(0, notification);
                             stopSelf();
                             break;
@@ -280,6 +284,7 @@ public class BrokenUploadService extends Service implements BlockIndexChangeList
             }
         } catch (IOException e) {
             Log.e("startUpload", e.toString());
+            stopUpload = true;
         }
     }
 
