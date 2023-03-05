@@ -27,15 +27,20 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
         tools:ignore="AllowBackup">
+        <activity
+            android:name=".VideoPlayActivity"
+            android:exported="false" />
+
         <service
-            android:name="com.simon.upload.service.BrokenUploadService"
+            android:name=".service.BrokenUploadService"
             android:enabled="true"
             android:exported="false" />
+
         <activity
-            android:name="com.simon.upload.ImageZoomActivity"
+            android:name=".ImageZoomActivity"
             android:exported="false" />
         <activity
-            android:name="com.simon.upload.ImageActivity"
+            android:name=".ImageActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -60,15 +65,15 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.simon.upload.VideoActivity"
+            android:name=".VideoActivity"
             android:exported="false"
             android:label="Video" />
         <activity
-            android:name="com.simon.upload.SettingsActivity"
+            android:name=".SettingsActivity"
             android:exported="true"
             android:label="@string/title_activity_settings" />
         <activity
-            android:name="com.simon.upload.MainActivity"
+            android:name=".MainActivity"
             android:exported="true" />
     </application>
 
