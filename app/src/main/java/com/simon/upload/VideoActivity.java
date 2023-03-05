@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.util.Size;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -28,6 +29,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.snackbar.Snackbar;
 import com.simon.upload.model.FileModel;
 import com.simon.upload.service.BrokenUploadService;
+import com.simon.upload.utils.CreateThumbnail;
 
 import java.io.File;
 import java.io.IOException;
@@ -183,23 +185,13 @@ public class VideoActivity extends MainActivity implements View.OnClickListener 
             public View getView(int position, View convertView, ViewGroup parent) {
                 final FileModel model = getItem(position);
                 convertView = LayoutInflater.from(getApplicationContext()).inflate(R.layout.image_picker_images, parent, false);
-                convertView.setBackgroundResource(R.drawable.gridview);
 
                 ImageView imageView = convertView.findViewById(R.id.img_picker_image);
                 TextView textView = convertView.findViewById(R.id.img_picker_filename);
                 CheckBox checkBox = convertView.findViewById(R.id.img_picker_checkbox);
 
-                Bitmap bitmap = null;
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                    bitmap = MediaStore.Video.Thumbnails.getThumbnail(getContentResolver(), model.getId(), MediaStore.Video.Thumbnails.MINI_KIND, null);
-                } else {
-                    try {
-                        Uri uri = Uri.parse(MediaStore.Video.Media.EXTERNAL_CONTENT_URI.toString() + "/" + model.getId());
-                        bitmap = getContentResolver().loadThumbnail(uri, new Size(200, 200), null);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
+                CreateThumbnail thumbnail = new CreateThumbnail(getApplicationContext(), model);
+                Bitmap bitmap = thumbnail.getRoundedCornerBitmap(thumbnail.getVideoBitmap(), 30);//
 
                 imageView.setScaleType(ImageView.ScaleType.MATRIX);
                 int screenLength = getResources().getDisplayMetrics().widthPixels;
@@ -221,6 +213,13 @@ public class VideoActivity extends MainActivity implements View.OnClickListener 
                 textView.setText(file.getName() + ", " + (file.length() / 1024) + "KB");
                 checkBox.setChecked(model.isSelected());
                 checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> model.setSelected(isChecked));
+                convertView.setOnClickListener(v -> {
+                    Log.e("aaa", "---------------");
+                    Intent intent = new Intent(getApplicationContext(), VideoPlayActivity.class);
+                    intent.putExtra("model", model);
+                    startActivity(intent);
+
+                });
                 return convertView;
             }
         };
