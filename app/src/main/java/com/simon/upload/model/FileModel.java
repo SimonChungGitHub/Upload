@@ -96,5 +96,9 @@ public class FileModel implements Parcelable {
         return context.getContentResolver().delete(uri, where, new String[]{String.valueOf(id)});
     }
 
+    public Uri getUri() {
+        return Uri.parse(MediaStore.Video.Media.EXTERNAL_CONTENT_URI.toString() + "/" + id);
+    }
+
 
 }
